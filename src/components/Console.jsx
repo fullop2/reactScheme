@@ -18,49 +18,46 @@ const ConsoleBox = styled.div`
 
 class Console extends React.Component {
   state = {
-    currentInput : '',
-    lines : [
-      // this.outputData(''),
-      // this.outputData('This is Scheme Project with React.'),
-      // this.outputData('From Programming Language 101 Lecture.'),
-      // this.outputData('')
-    ],
+    currentTotalInput : '',
+    lines : [],
     inputHistoryIndex : 0,
     inputHistory : [],
-    inputPrefix : ">> ",
-    inputState : ''
+    prefix : ">> ",
+    inputBlock : '',
+    currentLine : '',
   };
 
   constructor(props){
     super(props);
 
-    this.socket = new WebSocket('ws://localhost:920');
+    this.socket = new WebSocket('ws://35.243.183.177:920');
 
     this.consoleInput = React.createRef();
     this.onClickDisplay = this.onClickDisplay.bind(this);
     this.onKeyboardDown = this.onKeyboardDown.bind(this);
+    this.onChange = this.onChange.bind(this);
   }
 
   componentDidMount(){
-       this.consoleInput.focus();
+    document.title = "React Scheme";
+    
+    this.consoleInput.focus();
 
-       this.socket.onopen = (evt)=>{
-           //doSend("test msg");
-       };
-
-       this.socket.onclose = (evt)=>{
-           this.writeToScreen("disconnected");
-       };
-
-       this.socket.onmessage = (evt)=>{
-           console.log(evt.data);
-           this.writeToScreen(evt.data);
-       }
-  }
+    this.socket.onopen = (evt)=>{
+        // nothing to do;
+    };
+    this.socket.onclose = (evt)=>{
+        this.writeToScreen("disconnected");
+    };
+    this.socket.onmessage = (evt)=>{
+        this.writeToScreen(evt.data);
+    }
+}
+       
 
   send(msg){
     this.socket.send(msg);
-    this.setState({inputState : true});
+    this.setState({inputBlock : true});
   }
 
   writeToScreen(msg){
@@ -68,18 +65,12 @@ class Console extends React.Component {
     const { lines } = this.state;
     this.setState({
       lines : [...lines, msg],
-      inputState : false
+      inputBlock : false
     });
   }
 
   outputData(string){
-    return ('=> ' + string );
-  }
-  inputData(string){
-    return ('>> ' + string );
-  }
-  continueInputData(string){
-    return ('.. ' + string );
+    return (this.props.outputPrefix + string );
   }
 
   onClickDisplay(e){
@@ -87,54 +78,63 @@ class Console extends React.Component {
   }
 
   onKeyboardDown(e){
-    let { currentInput, inputHistory, lines, inputPrefix } = this.state;
-    const currentLine = this.consoleInput.value;
-    const newFullLine = currentInput + ' ' + currentLine;
+    let { currentLine, currentTotalInput, inputHistory, lines, prefix } = this.state;
+    const newFullLine = currentTotalInput + ' ' + currentLine;
 
     if(e.key === 'Enter'){
       if(e.shiftKey){
         this.setState({
-          currentInput : newFullLine,
-          inputHistory : [...inputHistory, currentInput],
-          inputPrefix : '.. '
+          currentTotalInput : newFullLine,
+          inputHistory : [...inputHistory, currentTotalInput],
+          prefix : this.props.inputContinuePrefix
         });
       }
       else{
-        console.log(newFullLine);
         this.setState({
-          currentInput : '',
-          inputPrefix : '>> '
+          currentTotalInput : '',
+          prefix : this.props.inputPrefix
         });
         this.send(newFullLine);
       }
 
-      this.setState({lines : [...lines, inputPrefix + currentLine]});
-      this.consoleInput.value = '';
+      this.setState({
+        lines : [...lines, prefix + currentLine],
+        currentLine : ''
+      });
     }
   }
-
+  
+  onChange(e){
+    this.setState({currentLine : e.target.value});
+  }
+  
   render(){
 
-    const { lines, inputPrefix, inputState } = this.state;
+    const { lines, prefix, inputBlock } = this.state;
     const outputLines = lines.map(line=>{return (<div>{line}</div>);});
 
     return (
-    <Container
-      onClick={this.onClickDisplay}
-      onKeyDown={this.onKeyboardDown}>
+    <Container onClick={this.onClickDisplay} onKeyDown={this.onKeyboardDown}>
     <h3>React Scheme Project</h3>
     <ConsoleBox>
     {outputLines}
-    {inputPrefix}
-    <input
-      type="text"
-      ref={e=>{this.consoleInput = e;}}
-      readOnly={inputState}
-    />
+    {prefix}
+    <input 
+      type="text" 
+      ref={e=>{this.consoleInput = e;}} 
+      value={this.state.currentLine} 
+      onChange={this.onChange}
+      readOnly={inputBlock}/>
     </ConsoleBox>
     </Container>
     );
   }
 }
+
+Console.defaultProps = {
+  inputPrefix : '>> ',
+  inputContinuePrefix : '.. ',
+  outputPrefix : '=> '
+};
 
 export default Console;

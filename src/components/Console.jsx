@@ -23,7 +23,7 @@ class Console extends React.Component {
     inputHistoryIndex : 0,
     inputHistory : [],
     prefix : ">> ",
-    inputBlock : '',
+    inputBlock : true,
     currentLine : '',
   };
 
@@ -40,7 +40,7 @@ class Console extends React.Component {
 
   componentDidMount(){
     document.title = "React Scheme";
-    
+
     this.consoleInput.focus();
 
     this.socket.onopen = (evt)=>{
@@ -53,7 +53,7 @@ class Console extends React.Component {
         this.writeToScreen(evt.data);
     }
 }
-       
+
 
   send(msg){
     this.socket.send(msg);
@@ -61,12 +61,12 @@ class Console extends React.Component {
   }
 
   writeToScreen(msg){
-    msg = this.outputData(msg);
-    const { lines } = this.state;
-    this.setState({
-      lines : [...lines, msg],
-      inputBlock : false
-    });
+    if(msg !== '\0'){
+      msg = this.outputData(msg);
+      const { lines } = this.state;
+      this.setState({lines : [...lines, msg]});
+    }
+    this.setState({inputBlock : false});
   }
 
   outputData(string){
@@ -79,7 +79,7 @@ class Console extends React.Component {
 
   onKeyboardDown(e){
     let { currentLine, currentTotalInput, inputHistory, lines, prefix } = this.state;
-    const newFullLine = currentTotalInput + ' ' + currentLine;
+    let newFullLine = currentTotalInput + ' ' + currentLine;
 
     if(e.key === 'Enter'){
       if(e.shiftKey){
@@ -90,6 +90,16 @@ class Console extends React.Component {
         });
       }
       else{
+        const LBrackets = newFullLine.match(/\(/g);
+        const RBrackets = newFullLine.match(/\)/g);
+        let LBracketCount = 0;
+        let RBracketCount = 0;
+
+        if(LBrackets !== null){LBracketCount = LBrackets.length;}
+        if(RBrackets !== null){RBracketCount = RBrackets.length;}
+
+        if(LBracketCount > RBracketCount) newFullLine += ')'.repeat(LBracketCount - RBracketCount);
+
         this.setState({
           currentTotalInput : '',
           prefix : this.props.inputPrefix
@@ -103,11 +113,11 @@ class Console extends React.Component {
       });
     }
   }
-  
+
   onChange(e){
     this.setState({currentLine : e.target.value});
   }
-  
+
   render(){
 
     const { lines, prefix, inputBlock } = this.state;
@@ -119,10 +129,10 @@ class Console extends React.Component {
     <ConsoleBox>
     {outputLines}
     {prefix}
-    <input 
-      type="text" 
-      ref={e=>{this.consoleInput = e;}} 
-      value={this.state.currentLine} 
+    <input
+      type="text"
+      ref={e=>{this.consoleInput = e;}}
+      value={this.state.currentLine}
       onChange={this.onChange}
       readOnly={inputBlock}/>
     </ConsoleBox>
